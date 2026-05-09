@@ -1,0 +1,13 @@
+# Build artifacts
+Objects/
+Listings/
+
+# Keil per-user GUI layout files
+*.uvguix.*
+
+# Claude Code
+CLAUDE.md
+.claude/
+
+# VS Code
+.vscode/
