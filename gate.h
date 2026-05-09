@@ -23,7 +23,7 @@
 
 /* Button pin masks on their respective ports */
 #define BTN_DRV_OPEN_PIN    (1u << 4)   /* PF4, active-low  */
-#define BTN_DRV_CLOSE_PIN   (1u << 0)   /* PE0, active-high */
+#define BTN_DRV_CLOSE_PIN   (1u << 0)   /* PF0, active-low  */
 #define BTN_SEC_OPEN_PIN    (1u << 1)   /* PE1, active-high */
 #define BTN_SEC_CLOSE_PIN   (1u << 0)   /* PB0, active-high */
 #define BTN_OPEN_LIM_PIN    (1u << 1)   /* PB1, active-high */

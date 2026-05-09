@@ -37,23 +37,26 @@ static void GPIO_Init(void)
     SYSCTL_RCGCGPIO_R |= RCGCGPIO_ALL;
     while ((SYSCTL_PRGPIO_R & RCGCGPIO_ALL) != RCGCGPIO_ALL) { }
 
-    /* Port F: RGB outputs (PF1..3) and Driver-OPEN button on PF4 (pull-up). */
-    GPIO_PORTF_AMSEL_R &= ~(BTN_DRV_OPEN_PIN | LED_MASK);
-    GPIO_PORTF_PCTL_R  &= ~0x000FFFF0U;
-    GPIO_PORTF_AFSEL_R &= ~(BTN_DRV_OPEN_PIN | LED_MASK);
+    /* Port F: RGB (PF1-3), Driver OPEN (PF4), Driver CLOSE (PF0) — all pull-up, active-low.
+     * PF0 is NMI-protected and requires lock/unlock before configuration. */
+    GPIO_PORTF_LOCK_R  = 0x4C4F434BU;   /* unlock */
+    GPIO_PORTF_CR_R   |= BTN_DRV_CLOSE_PIN;
+    GPIO_PORTF_AMSEL_R &= ~(BTN_DRV_OPEN_PIN | BTN_DRV_CLOSE_PIN | LED_MASK);
+    GPIO_PORTF_PCTL_R  &= ~0x000FFFFFU;
+    GPIO_PORTF_AFSEL_R &= ~(BTN_DRV_OPEN_PIN | BTN_DRV_CLOSE_PIN | LED_MASK);
     GPIO_PORTF_DIR_R   |=  LED_MASK;
-    GPIO_PORTF_DIR_R   &= ~BTN_DRV_OPEN_PIN;
-    GPIO_PORTF_PUR_R   |=  BTN_DRV_OPEN_PIN;
-    GPIO_PORTF_DEN_R   |=  BTN_DRV_OPEN_PIN | LED_MASK;
+    GPIO_PORTF_DIR_R   &= ~(BTN_DRV_OPEN_PIN | BTN_DRV_CLOSE_PIN);
+    GPIO_PORTF_PUR_R   |=  (BTN_DRV_OPEN_PIN | BTN_DRV_CLOSE_PIN);
+    GPIO_PORTF_DEN_R   |=  (BTN_DRV_OPEN_PIN | BTN_DRV_CLOSE_PIN | LED_MASK);
     GPIO_PORTF_DATA_R  &= ~LED_MASK;
 
-    /* Port E: PE0 (Driver CLOSE), PE1 (Security OPEN), pull-down. */
-    GPIO_PORTE_AMSEL_R &= ~(BTN_DRV_CLOSE_PIN | BTN_SEC_OPEN_PIN);
-    GPIO_PORTE_PCTL_R  &= ~0x000000FFU;
-    GPIO_PORTE_AFSEL_R &= ~(BTN_DRV_CLOSE_PIN | BTN_SEC_OPEN_PIN);
-    GPIO_PORTE_DIR_R   &= ~(BTN_DRV_CLOSE_PIN | BTN_SEC_OPEN_PIN);
-    GPIO_PORTE_PDR_R   |=  (BTN_DRV_CLOSE_PIN | BTN_SEC_OPEN_PIN);
-    GPIO_PORTE_DEN_R   |=  (BTN_DRV_CLOSE_PIN | BTN_SEC_OPEN_PIN);
+    /* Port E: PE1 (Security OPEN) only — pull-down, active-high. */
+    GPIO_PORTE_AMSEL_R &= ~BTN_SEC_OPEN_PIN;
+    GPIO_PORTE_PCTL_R  &= ~0x000000F0U;
+    GPIO_PORTE_AFSEL_R &= ~BTN_SEC_OPEN_PIN;
+    GPIO_PORTE_DIR_R   &= ~BTN_SEC_OPEN_PIN;
+    GPIO_PORTE_PDR_R   |=  BTN_SEC_OPEN_PIN;
+    GPIO_PORTE_DEN_R   |=  BTN_SEC_OPEN_PIN;
 
     /* Port B: PB0 (Security CLOSE), PB1 (Open Limit), pull-down. */
     GPIO_PORTB_AMSEL_R &= ~(BTN_SEC_CLOSE_PIN | BTN_OPEN_LIM_PIN);
