@@ -1,4 +1,5 @@
 #include "gate.h"
+#include "basic_io.h"
 #include "tm4c123gh6pm.h"
 
 /*
@@ -94,13 +95,19 @@ void vInputTask(void *pv)
         process_panel_button(&panel[BTN_SEC_OPEN],  Read_PE1(), BTN_SEC_OPEN,  now);
         process_panel_button(&panel[BTN_SEC_CLOSE], Read_PB0(), BTN_SEC_CLOSE, now);
 
+        if (Read_PB1() == lim_open.raw_prev  && Read_PB1() != lim_open.stable  && Read_PB1())
+            vPrintString("[Input] Open Limit pressed\n");
         process_edge_button(&lim_open,  Read_PB1(), EVT_LIMIT_OPEN,   xSemLimit);
+
+        if (Read_PD0() == lim_close.raw_prev && Read_PD0() != lim_close.stable && Read_PD0())
+            vPrintString("[Input] Closed Limit pressed\n");
         process_edge_button(&lim_close, Read_PD0(), EVT_LIMIT_CLOSED, xSemLimit);
 
         /* Obstacle: only the semaphore — Safety Task is the consumer. */
         if (Read_PD1() == obstacle.raw_prev && Read_PD1() != obstacle.stable) {
             obstacle.stable = Read_PD1();
             if (obstacle.stable) {
+                vPrintString("[Input] OBSTACLE pressed\n");
                 xSemaphoreGive(xSemObstacle);
             }
         }
@@ -111,6 +118,7 @@ void vInputTask(void *pv)
         uint8_t sec_both = panel[BTN_SEC_OPEN].stable && panel[BTN_SEC_CLOSE].stable;
 
         if (drv_both && !driver_conflict_emitted) {
+            vPrintString("[Input] Driver CONFLICT\n");
             GateEvent_t ev = { EVT_PANEL_CONFLICT, (uint8_t)PANEL_DRIVER, 0 };
             xQueueSend(xQueueGateEvents, &ev, 0);
             driver_conflict_emitted = 1;
@@ -119,6 +127,7 @@ void vInputTask(void *pv)
         }
 
         if (sec_both && !security_conflict_emitted) {
+            vPrintString("[Input] Security CONFLICT\n");
             GateEvent_t ev = { EVT_PANEL_CONFLICT, (uint8_t)PANEL_SECURITY, 0 };
             xQueueSend(xQueueGateEvents, &ev, 0);
             security_conflict_emitted = 1;

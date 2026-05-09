@@ -1,4 +1,5 @@
 #include "gate.h"
+#include "basic_io.h"
 
 /*
  * Safety Task: highest priority. Waits on xSemObstacle. When the obstacle button
@@ -9,18 +10,20 @@
 void vSafetyTask(void *pv)
 {
     (void)pv;
+    vPrintString("Safety Task Started\n");
     for (;;) {
         if (xSemaphoreTake(xSemObstacle, portMAX_DELAY) != pdTRUE) continue;
 
-        /* Check state under mutex; must be CLOSING to react. */
         xSemaphoreTake(xMutexState, portMAX_DELAY);
         if (g_gate_state != GATE_CLOSING) {
             xSemaphoreGive(xMutexState);
+            vPrintString("[Safety] Obstacle ignored\n");
             continue;
         }
         g_gate_state = GATE_REVERSING;
         xSemaphoreGive(xMutexState);
         xTaskNotify(xTaskLEDControl, (uint32_t)GATE_REVERSING, eSetValueWithOverwrite);
+        vPrintString("[Safety] OBSTACLE! Reversing...\n");
 
         vTaskDelay(pdMS_TO_TICKS(REVERSE_MS));
 
@@ -28,5 +31,6 @@ void vSafetyTask(void *pv)
         g_gate_state = GATE_STOPPED_MIDWAY;
         xSemaphoreGive(xMutexState);
         xTaskNotify(xTaskLEDControl, (uint32_t)GATE_STOPPED_MIDWAY, eSetValueWithOverwrite);
+        vPrintString("[Safety] Reverse done\n");
     }
 }

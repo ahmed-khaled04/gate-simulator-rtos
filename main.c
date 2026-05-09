@@ -11,12 +11,13 @@
  */
 
 #include <stdint.h>
-#include "tm4c123gh6pm.h"
-#include "gate.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
+#include "basic_io.h"
+#include "tm4c123gh6pm.h"
+#include "gate.h"
 
 QueueHandle_t      xQueueGateEvents = NULL;
 SemaphoreHandle_t  xSemObstacle     = NULL;
@@ -75,6 +76,10 @@ int main(void)
 {
     GPIO_Init();
 
+    vPrintString("=== Smart Parking Gate System ===\n");
+    vPrintString("CSE411/CSE323 Spring 2026\n");
+    vPrintString("Creating tasks...\n");
+
     xQueueGateEvents = xQueueCreate(16, sizeof(GateEvent_t));
     xSemObstacle     = xSemaphoreCreateBinary();
     xSemLimit        = xSemaphoreCreateBinary();
@@ -90,6 +95,7 @@ int main(void)
     xTaskCreate(vInputTask,       "Input",  256, NULL, 3, NULL);
     xTaskCreate(vSafetyTask,      "Safety", 256, NULL, 4, NULL);
 
+    vPrintString("Starting scheduler...\n");
     vTaskStartScheduler();
 
     for (;;) { }   /* unreached */
