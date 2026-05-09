@@ -1,12 +1,28 @@
 #include "gate.h"
-
-/*
- * Gate Control Task: consumes events from xQueueGateEvents and runs the state
- * machine in PDF §7. Tap-vs-hold is decided here from EVT_BTN_RELEASED.hold_ms;
- * driver/security priority is enforced via current_owner.
- */
+#include "basic_io.h"
 
 GateState_t g_gate_state = GATE_IDLE_CLOSED;
+
+static const char * const s_state_names[] = {
+    "[Gate] IDLE_CLOSED\n",
+    "[Gate] IDLE_OPEN\n",
+    "[Gate] OPENING\n",
+    "[Gate] CLOSING\n",
+    "[Gate] STOPPED_MIDWAY\n",
+    "[Gate] REVERSING\n"
+};
+static const char * const s_btn_press[] = {
+    "[Btn] DRV_OPEN pressed\n",
+    "[Btn] DRV_CLOSE pressed\n",
+    "[Btn] SEC_OPEN pressed\n",
+    "[Btn] SEC_CLOSE pressed\n"
+};
+static const char * const s_btn_rel[] = {
+    "[Btn] DRV_OPEN  rel ms:",
+    "[Btn] DRV_CLOSE rel ms:",
+    "[Btn] SEC_OPEN  rel ms:",
+    "[Btn] SEC_CLOSE rel ms:"
+};
 
 typedef enum { SUB_AUTO = 0, SUB_MANUAL } SubMode_t;
 typedef enum { OWNER_NONE = 0, OWNER_DRIVER, OWNER_SECURITY } Owner_t;
@@ -29,6 +45,7 @@ static void set_state(GateState_t st)
     g_gate_state = st;
     xSemaphoreGive(xMutexState);
     notify_led(st);
+    vPrintString(s_state_names[st]);
 }
 
 GateState_t GateState_Read(void)
@@ -74,9 +91,12 @@ static void handle_press(ButtonId_t b)
     Owner_t who = owner_of(b);
     GateState_t cur = GateState_Read();
 
+    vPrintString(s_btn_press[b]);
+
     /* Security preempts driver; driver cannot preempt active security command. */
     if (who == OWNER_DRIVER && s_owner == OWNER_SECURITY &&
         (cur == GATE_OPENING || cur == GATE_CLOSING)) {
+        vPrintString("[Gate] Driver blocked\n");
         return;
     }
 
@@ -115,11 +135,13 @@ static void handle_release(ButtonId_t b, uint16_t hold_ms)
     if (cur == GATE_OPENING && !is_open_button(b)) return;
     if (cur == GATE_CLOSING &&  is_open_button(b)) return;
 
+    vPrintStringAndNumber(s_btn_rel[b], hold_ms);
+
     if (hold_ms < HOLD_THRESH_MS) {
-        /* Tap → AUTO mode: motion continues; release does NOT stop the gate. */
         s_sub_mode = SUB_AUTO;
+        vPrintString("[Gate] Mode: AUTO\n");
     } else {
-        /* Held → MANUAL: stop now. */
+        vPrintString("[Gate] Mode: MANUAL stop\n");
         stop_midway();
     }
 }
@@ -135,15 +157,16 @@ static void handle_limit(EventKind_t ev)
         set_state(GATE_IDLE_CLOSED);
     }
     /* Wrong limit pressed during motion → ignored (TC-12). */
+    else { vPrintString("[Gate] Wrong limit ignored\n"); }
 }
 
 static void handle_conflict(void)
 {
+    vPrintString("[Gate] CONFLICT -> STOP\n");
     GateState_t cur = GateState_Read();
     if (cur == GATE_OPENING || cur == GATE_CLOSING || cur == GATE_STOPPED_MIDWAY) {
         stop_midway();
     } else if (cur == GATE_IDLE_OPEN || cur == GATE_IDLE_CLOSED) {
-        /* Spec: conflicting input results in safe stop — already at rest. */
         stop_midway();
     }
 }
@@ -153,7 +176,7 @@ void vGateControlTask(void *pv)
     (void)pv;
     GateEvent_t ev;
 
-    /* Publish initial state to LED Control. */
+    vPrintString("Gate Control Task Started\n");
     notify_led(g_gate_state);
 
     for (;;) {

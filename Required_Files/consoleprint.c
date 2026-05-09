@@ -1,13 +1,33 @@
+//*****************************************************************************
+//   +--+
+//   | ++----+
+//   +-++    |
+//     |     |
+//   +-+--+  |
+//   | +--+--+
+//   +----+    Copyright (c) 2009 Code Red Technologies Ltd.
+//
+// consoleprint.c - provides a "print string to console" function that uses
+//                  the CodeRed semihosting debug channel functionality.
+//
+//*****************************************************************************
+
 #include <stdio.h>
+#include <string.h>
+#include "rt_sys.h"
 #include "consoleprint.h"
 
-/*
- * consoleprint() — routes a string to the Keil Debug (printf) Viewer via
- * printf, which is retargeted to ITM channel 0 by retarget.c (__write ->
- * ITM_SendChar). Output appears at:
- *   View -> Serial Windows -> Debug (printf) Viewer
- */
+#if (defined(__NEWLIB__))
+#define LIBSTUB_SYS_WRITE _swiwrite
+#else // __REDLIB__
+#define LIBSTUB_SYS_WRITE __write
+#endif
+int LIBSTUB_SYS_WRITE (int, char *, int);
+
 int consoleprint(char *cpstring)
 {
-    return printf("%s", cpstring);
+    int slen, res;
+    slen = strlen(cpstring);
+    res  = LIBSTUB_SYS_WRITE(0, cpstring, slen);
+    return res;
 }
